@@ -1,1 +1,54 @@
+name: Construire APK
 
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "Inventaire_Echappee_BLE_Online.zip"
+      - ".github/workflows/build-apk.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Décompresser le projet
+        run: |
+          mkdir buildsrc
+          unzip -o Inventaire_Echappee_BLE_Online.zip -d buildsrc
+          echo "Contenu extrait :"
+          find buildsrc -maxdepth 3 -type f | head -100
+
+      - name: Rendre Gradle exécutable
+        run: |
+          cd buildsrc
+          PROJECT_DIR=$(find . -name gradlew -type f -printf '%h\n' | head -1)
+          echo "Projet trouvé dans : $PROJECT_DIR"
+          chmod +x "$PROJECT_DIR/gradlew"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+      - name: Compiler l'APK
+        run: |
+          cd "buildsrc/$PROJECT_DIR"
+          ./gradlew assembleDebug
+
+      - name: Trouver l'APK
+        run: |
+          APK=$(find buildsrc -type f -name "*.apk" | head -1)
+          echo "APK=$APK" >> "$GITHUB_ENV"
+          echo "APK trouvé : $APK"
+
+      - name: Mettre l'APK à disposition
+        uses: actions/upload-artifact@v4
+        with:
+          name: Inventaire-Echappee-APK
+          path: ${{ env.APK }}
